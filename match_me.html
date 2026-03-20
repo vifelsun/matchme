@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Residency Match Likelihood Calculator | 2024 NRMP Data</title>
+<style>
+/* ===== RESET & TOKENS ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:       #0f2744;
+  --blue:       #1d4ed8;
+  --blue-light: #3b82f6;
+  --sky:        #0ea5e9;
+  --green:      #16a34a;
+  --green-bg:   #f0fdf4;
+  --green-bd:   #86efac;
+  --amber:      #d97706;
+  --amber-bg:   #fffbeb;
+  --amber-bd:   #fcd34d;
+  --red:        #dc2626;
+  --red-bg:     #fef2f2;
+  --red-bd:     #fca5a5;
+  --slate-50:   #f8fafc;
+  --slate-100:  #f1f5f9;
+  --slate-200:  #e2e8f0;
+  --slate-400:  #94a3b8;
+  --slate-500:  #64748b;
+  --slate-700:  #334155;
+  --slate-900:  #0f172a;
+  --white:      #ffffff;
+  --card-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  --card-shadow-lg: 0 4px 6px rgba(0,0,0,.07), 0 10px 30px rgba(0,0,0,.1);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--slate-50);
+  color: var(--slate-900);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ===== HEADER ===== */
+.site-header {
+  background: var(--navy);
+  padding: .875rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,.25);
+}
+.logo { font-size: 1.2rem; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+.logo span { color: var(--sky); }
+.header-tag {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+  color: rgba(255,255,255,.75); border-radius: 999px;
+  padding: .3rem .85rem; font-size: .78rem; font-weight: 600;
+}
+
+/* ===== HERO ===== */
+.hero {
+  background: linear-gradient(135deg, #0a1d3b 0%, #0f2744 40%, #1a3a6b 70%, #1d4ed8 100%);
+  padding: 4rem 1.5rem 3.5rem;
+  text-align: center; color: #fff; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 70% 50%, rgba(56,189,248,.12) 0%, transparent 65%),
+              radial-gradient(ellipse at 20% 80%, rgba(99,102,241,.1) 0%, transparent 55%);
+}
+.hero-inner { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: .45rem;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px; padding: .35rem 1rem; font-size: .8rem; font-weight: 600;
+  margin-bottom: 1.4rem; color: rgba(255,255,255,.9);
+}
+.hero h1 { font-size: 2.6rem; font-weight: 900; line-height: 1.15; margin-bottom: .9rem; }
+.hero h1 em { font-style: normal; color: #7dd3fc; }
+.hero p { font-size: 1.05rem; opacity: .82; max-width: 540px; margin: 0 auto 1.6rem; }
+.hero-bullets {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem;
+  font-size: .82rem; margin-bottom: 2rem;
+}
+.hero-bullets span {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px; padding: .3rem .9rem; color: rgba(255,255,255,.85);
+}
+.scroll-cta {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 999px; cursor: pointer;
+  padding: .85rem 2.2rem; font-size: 1rem; font-weight: 700;
+  transition: all .2s; box-shadow: 0 4px 18px rgba(29,78,216,.45);
+}
+.scroll-cta:hover { background: #2563eb; transform: translateY(-2px); }
+
+/* ===== CONTAINER ===== */
+.container { max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem; }
+
+/* ===== PROGRESS BAR ===== */
+.progress-wrap {
+  display: flex; align-items: center; justify-content: center;
+  padding: 2rem 0 1.25rem; gap: 0;
+}
+.prog-step { display: flex; flex-direction: column; align-items: center; }
+.prog-circle {
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 2.5px solid var(--slate-200); background: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: .85rem; color: var(--slate-400);
+  transition: all .35s; position: relative; z-index: 1;
+}
+.prog-step.active .prog-circle { border-color: var(--blue); background: var(--blue); color: #fff; box-shadow: 0 0 0 4px rgba(29,78,216,.15); }
+.prog-step.done .prog-circle { border-color: var(--green); background: var(--green); color: #fff; }
+.prog-label { font-size: .72rem; font-weight: 600; color: var(--slate-400); margin-top: .45rem; text-align: center; }
+.prog-step.active .prog-label { color: var(--blue); }
+.prog-step.done .prog-label { color: var(--green); }
+.prog-line { height: 3px; width: 70px; background: var(--slate-200); margin-bottom: 1.35rem; transition: background .35s; }
+.prog-line.done { background: var(--green); }
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--white); border-radius: var(--radius);
+  border: 1px solid var(--slate-200); box-shadow: var(--card-shadow);
+  padding: 2rem; margin-bottom: 1.5rem;
+}
+.card-head { margin-bottom: 1.5rem; }
+.card-title { font-size: 1.2rem; font-weight: 800; color: var(--navy); margin-bottom: .3rem; }
+.card-sub { color: var(--slate-500); font-size: .875rem; }
+
+/* ===== SPECIALTY GRID ===== */
+.spec-search-wrap { position: relative; margin-bottom: 1rem; }
+.spec-search {
+  width: 100%; padding: .65rem 1rem .65rem 2.5rem;
+  border: 1.5px solid var(--slate-200); border-radius: var(--radius-sm);
+  font-size: .9rem; color: var(--slate-900); background: var(--white);
+  transition: border-color .2s;
+}
+.spec-search:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29,78,216,.1); }
+.spec-search-icon { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); color: var(--slate-400); pointer-events: none; }
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(195px,1fr)); gap: .65rem; }
+.spec-btn {
+  display: block; text-align: left; width: 100%;
+  padding: .75rem 1rem; border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-sm); background: var(--white); cursor: pointer;
+  transition: all .18s;
+}
+.spec-btn:hover { border-color: var(--blue-light); background: #eff6ff; }
+.spec-btn.sel { border-color: var(--blue); background: #eff6ff; }
+.spec-btn-name { font-size: .85rem; font-weight: 700; color: var(--slate-900); display: block; }
+.spec-btn.sel .spec-btn-name { color: var(--blue); }
+.spec-btn-rate { font-size: .75rem; color: var(--slate-500); margin-top: .15rem; display: flex; align-items: center; gap: .35rem; }
+.comp-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.comp-high { background: var(--red); }
+.comp-mod { background: var(--amber); }
+.comp-low { background: var(--green); }
+
+/* ===== FORM GRID ===== */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media(max-width:640px) { .form-grid { grid-template-columns: 1fr; } }
+.full { grid-column: 1 / -1; }
+.f-group { display: flex; flex-direction: column; }
+.f-label { font-size: .83rem; font-weight: 700; color: var(--slate-700); margin-bottom: .35rem; }
+.f-hint { font-weight: 400; color: var(--slate-500); font-size: .77rem; display: block; margin-bottom: .35rem; }
+.f-input {
+  padding: .6rem .875rem; border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-sm); font-size: .9375rem; color: var(--slate-900);
+  background: var(--white); width: 100%; transition: border-color .2s;
+}
+.f-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29,78,216,.1); }
+
+/* ===== TOGGLE BUTTONS ===== */
+.toggle-row { display: flex; gap: .65rem; flex-wrap: wrap; }
+.tgl {
+  flex: 1; min-width: 120px; padding: .6rem .5rem;
+  border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-sm); background: var(--white); cursor: pointer;
+  font-size: .85rem; font-weight: 600; text-align: center;
+  color: var(--slate-500); transition: all .18s;
+}
+.tgl:hover { border-color: var(--slate-400); }
+.tgl.yes  { border-color: var(--green);      background: var(--green-bg);  color: var(--green); }
+.tgl.no   { border-color: var(--red);        background: var(--red-bg);    color: var(--red); }
+/* ── NEW: "No AOA Chapter" state ── */
+.tgl.na   { border-color: var(--sky);        background: #f0f9ff;          color: #0369a1; }
+
+/* ===== BUTTONS ===== */
+.btn { padding: .75rem 1.75rem; border: none; border-radius: var(--radius-sm); font-size: .9375rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(29,78,216,.35); }
+.btn-secondary { background: var(--white); color: var(--blue); border: 1.5px solid var(--blue); }
+.btn-secondary:hover { background: #eff6ff; }
+.btn-giant {
+  display: inline-flex; align-items: center; gap: .6rem;
+  padding: 1rem 2.5rem; font-size: 1.05rem;
+  background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
+  color: #fff; border: none; border-radius: 999px; cursor: pointer; font-weight: 800;
+  box-shadow: 0 4px 20px rgba(29,78,216,.4); transition: all .2s;
+}
+.btn-giant:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(29,78,216,.5); }
+.btn-group { display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem; }
+
+/* ===== PANELS ===== */
+.panel { display: none; animation: fadeUp .35s ease; }
+.panel.active { display: block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+/* ===== SECTION HEADER ===== */
+.section-head { margin-bottom: 1.25rem; }
+.section-head h2 { font-size: 1.4rem; font-weight: 800; color: var(--navy); }
+.section-head p { color: var(--slate-500); font-size: .875rem; margin-top: .25rem; }
+
+/* ===== RESULT SUMMARY CARD ===== */
+.result-hero-card {
+  background: linear-gradient(135deg, var(--navy) 0%, #1a3a6b 100%);
+  border-radius: var(--radius); padding: 2rem; margin-bottom: 1.5rem;
+  color: #fff; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;
+  box-shadow: var(--card-shadow-lg);
+}
+.gauge-side { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.gauge-pct { font-size: 4rem; font-weight: 900; line-height: 1; margin-top: -.3rem; }
+.gauge-lbl { font-size: .8rem; opacity: .75; text-align: center; margin-top: .3rem; max-width: 130px; }
+.result-stats { flex: 1; min-width: 220px; }
+.result-stats h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: .35rem; }
+.result-stats .spec-name-badge {
+  display: inline-block; background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25); border-radius: 999px;
+  padding: .2rem .75rem; font-size: .8rem; font-weight: 700; margin-bottom: .9rem;
+}
+.tri-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: .75rem; margin-bottom: 1rem; }
+@media(max-width:520px) { .tri-stats { grid-template-columns: 1fr 1fr; } }
+.tri-stat {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 10px; padding: .75rem; text-align: center;
+}
+.tri-val { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.tri-lbl { font-size: .7rem; opacity: .7; margin-top: .25rem; }
+.summary-blurb { background: rgba(255,255,255,.1); border-radius: 8px; padding: .75rem 1rem; font-size: .85rem; opacity: .9; line-height: 1.55; }
+
+/* ===== METRIC BARS ===== */
+.metric-grid { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.5rem; }
+.metric-card {
+  background: var(--white); border: 1px solid var(--slate-200);
+  border-radius: var(--radius-sm); padding: 1rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  border-left: 4px solid transparent;
+}
+.metric-card.strength  { border-left-color: var(--green); }
+.metric-card.watch     { border-left-color: var(--amber); }
+.metric-card.weakness  { border-left-color: var(--red); }
+.metric-card.neutral   { border-left-color: var(--slate-300); }
+/* ── NEW: "not applicable" card styling ── */
+.metric-card.na-card   { border-left-color: var(--sky); background: #f0f9ff; }
+
+.metric-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: .7rem; flex-wrap: wrap; gap: .4rem; }
+.metric-name { font-weight: 700; font-size: .875rem; color: var(--slate-900); }
+.metric-badge {
+  font-size: .7rem; font-weight: 800; padding: .2rem .7rem;
+  border-radius: 999px; text-transform: uppercase; letter-spacing: .04em;
+}
+.metric-badge.strength { background: var(--green-bg); color: var(--green);         border: 1px solid var(--green-bd); }
+.metric-badge.watch    { background: var(--amber-bg); color: var(--amber);          border: 1px solid var(--amber-bd); }
+.metric-badge.weakness { background: var(--red-bg);   color: var(--red);            border: 1px solid var(--red-bd); }
+.metric-badge.neutral  { background: var(--slate-100);color: var(--slate-500);      border: 1px solid var(--slate-200); }
+/* ── NEW ── */
+.metric-badge.na-badge { background: #e0f2fe;          color: #0369a1;              border: 1px solid #bae6fd; }
+
+.bar-rows { display: flex; flex-direction: column; gap: .4rem; }
+.bar-row  { display: flex; align-items: center; gap: .75rem; }
+.bar-lbl  { font-size: .72rem; color: var(--slate-500); width: 108px; flex-shrink: 0; font-weight: 600; }
+.bar-track { flex: 1; height: 10px; background: var(--slate-100); border-radius: 999px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 999px; transition: width 1s cubic-bezier(.25,.1,.25,1); }
+.bar-you       { background: linear-gradient(90deg, var(--blue) 0%, var(--sky) 100%); }
+.bar-matched   { background: var(--green); }
+.bar-unmatched { background: var(--red); opacity: .7; }
+.bar-val { font-size: .75rem; font-weight: 700; width: 52px; flex-shrink: 0; text-align: right; color: var(--slate-700); }
+
+.bin-row { display: flex; align-items: center; gap: .85rem; flex-wrap: wrap; margin-top: .35rem; }
+.bin-you-chip { padding: .3rem .85rem; border-radius: 999px; font-size: .82rem; font-weight: 700; }
+.bin-you-chip.yes { background: var(--green-bg); color: var(--green);  border: 1px solid var(--green-bd); }
+.bin-you-chip.no  { background: var(--red-bg);   color: var(--red);    border: 1px solid var(--red-bd); }
+/* ── NEW ── */
+.bin-you-chip.na-chip { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.bin-stat { font-size: .8rem; color: var(--slate-500); }
+.bin-stat strong { color: var(--slate-700); }
+
+/* ── NEW: AOA explanation box ── */
+.aoa-na-note {
+  background: #e0f2fe; border: 1px solid #bae6fd; border-radius: var(--radius-sm);
+  padding: .65rem .9rem; margin-top: .65rem;
+  font-size: .8rem; color: #0369a1; line-height: 1.55;
+}
+.aoa-na-note strong { color: #075985; }
+
+/* ===== WEAKNESS / STRENGTH ITEMS ===== */
+.ws-item {
+  border-radius: var(--radius-sm); padding: 1rem 1.25rem; margin-bottom: .75rem;
+  border: 1px solid; border-left-width: 4px;
+}
+.ws-item.weak   { background: var(--red-bg);    border-color: var(--red-bd);    border-left-color: var(--red); }
+.ws-item.strong { background: var(--green-bg);  border-color: var(--green-bd);  border-left-color: var(--green); }
+.ws-item.warn   { background: var(--amber-bg);  border-color: var(--amber-bd);  border-left-color: var(--amber); }
+/* ── NEW: info style for AOA-NA ── */
+.ws-item.info-na { background: #f0f9ff; border-color: #bae6fd; border-left-color: var(--sky); }
+
+.ws-title { font-weight: 800; font-size: .875rem; margin-bottom: .3rem; }
+.ws-item.weak   .ws-title { color: #991b1b; }
+.ws-item.strong .ws-title { color: #14532d; }
+.ws-item.warn   .ws-title { color: #78350f; }
+.ws-item.info-na .ws-title { color: #075985; }
+
+.ws-text { font-size: .825rem; line-height: 1.55; }
+.ws-item.weak   .ws-text { color: #b91c1c; }
+.ws-item.strong .ws-text { color: #166534; }
+.ws-item.warn   .ws-text { color: #92400e; }
+.ws-item.info-na .ws-text { color: #0369a1; }
+
+/* ===== ACTION PLAN ===== */
+.action-item {
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--white); border: 1px solid var(--slate-200);
+  border-radius: var(--radius-sm); padding: 1rem 1.25rem; margin-bottom: .75rem;
+}
+.action-icon-box {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+}
+.action-icon-box.hp   { background: var(--red-bg); }
+.action-icon-box.mp   { background: var(--amber-bg); }
+.action-icon-box.lp   { background: var(--green-bg); }
+.action-icon-box.info { background: #eff6ff; }
+.action-icon-box.sky  { background: #f0f9ff; }
+.action-content h4 { font-size: .875rem; font-weight: 800; color: var(--slate-900); margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.action-content p  { font-size: .82rem; color: var(--slate-500); line-height: 1.6; }
+
+.ptag { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.ptag.high   { background: var(--red-bg);   color: var(--red); }
+.ptag.medium { background: var(--amber-bg); color: var(--amber); }
+.ptag.low    { background: var(--green-bg); color: var(--green); }
+.ptag.info   { background: #eff6ff;         color: var(--blue); }
+.ptag.sky    { background: #e0f2fe;         color: #0369a1; }
+
+/* ===== ALERTS ===== */
+.alert { border-radius: var(--radius-sm); padding: .875rem 1.1rem; font-size: .85rem; line-height: 1.55; margin-bottom: 1rem; }
+.alert-blue  { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+.alert-amber { background: var(--amber-bg); border: 1px solid var(--amber-bd); color: #78350f; }
+.alert-small-sample { background: #fdf4ff; border: 1px solid #e9d5ff; color: #6b21a8; border-radius: var(--radius-sm); padding: .6rem .9rem; font-size: .78rem; margin-top: .75rem; }
+
+/* ===== LEGEND ===== */
+.legend { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+.legend-item { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: var(--slate-500); font-weight: 600; }
+.leg-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+/* ===== COMP TAGS ===== */
+.comp-tag { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .85rem; border-radius: 999px; font-size: .78rem; font-weight: 700; border: 1px solid; }
+.comp-tag.highly   { background: var(--red-bg);   color: var(--red);   border-color: var(--red-bd); }
+.comp-tag.very     { background: #fff7ed;          color: #ea580c;      border-color: #fdba74; }
+.comp-tag.moderate { background: var(--amber-bg);  color: var(--amber); border-color: var(--amber-bd); }
+.comp-tag.less     { background: var(--green-bg);  color: var(--green); border-color: var(--green-bd); }
+
+/* ===== MISC ===== */
+.divider    { height: 1px; background: var(--slate-200); margin: 1.5rem 0; }
+.info-note  { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--radius-sm); padding: .65rem .9rem; font-size: .8rem; color: var(--slate-500); }
+
+/* ===== FOOTER ===== */
+footer { background: var(--navy); color: rgba(255,255,255,.6); text-align: center; padding: 1.75rem 1rem; font-size: .8rem; margin-top: 3rem; }
+footer strong { color: rgba(255,255,255,.85); }
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:640px) {
+  .hero h1 { font-size: 1.9rem; }
+  .result-hero-card { flex-direction: column; align-items: center; }
+  .gauge-pct { font-size: 3rem; }
+  .tri-stats { grid-template-columns: 1fr 1fr; }
+  .container { padding: 1.25rem .875rem; }
+  .card { padding: 1.25rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="logo">Match<span>Calc</span></div>
+  <div class="header-tag">📊 2024 NRMP Data</div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">📋 Based on NRMP Charting Outcomes in the Match: U.S. MD Seniors, 2024</div>
+    <h1>What Are Your Odds of<br><em>Matching to Your Dream Specialty?</em></h1>
+    <p>Enter your academic profile and rank-list strategy to get a personalized match likelihood estimate benchmarked against 14,315+ matched applicants from the 2024 NRMP cycle — plus a custom action plan for your weaknesses.</p>
+    <div class="hero-bullets">
+      <span>✦ All 22 Specialties</span>
+      <span>✦ 12 NRMP Metrics</span>
+      <span>✦ Composite Score</span>
+      <span>✦ AOA-Chapter Aware</span>
+      <span>✦ Actionable Advice</span>
+    </div>
+    <button class="scroll-cta" onclick="document.getElementById('calc-anchor').scrollIntoView({behavior:'smooth'})">
+      🎯 Start My Assessment
+    </button>
+  </div>
+</section>
+
+<div id="calc-anchor"></div>
+<div id="calc-section" class="container">
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="prog-wrap">
+    <div class="prog-step active" id="ps-1"><div class="prog-circle">1</div><div class="prog-label">Specialty</div></div>
+    <div class="prog-line" id="pl-12"></div>
+    <div class="prog-step" id="ps-2"><div class="prog-circle">2</div><div class="prog-label">Your Profile</div></div>
+    <div class="prog-line" id="pl-23"></div>
+    <div class="prog-step" id="ps-3"><div class="prog-circle">3</div><div class="prog-label">ROL Strategy</div></div>
+    <div class="prog-line" id="pl-3r"></div>
+    <div class="prog-step" id="ps-r"><div class="prog-circle">✓</div><div class="prog-label">Results</div></div>
+  </div>
+
+  <!-- PANEL 1: Specialty -->
+  <div class="panel active" id="panel-1">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Step 1 — Select Your Preferred Specialty</div>
+        <div class="card-sub">Choose the specialty of your first-ranked program. Color codes reflect 2024 match-rate competitiveness.</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="leg-dot" style="background:var(--red)"></div>Highly Competitive (&lt;80%)</div>
+        <div class="legend-item"><div class="leg-dot" style="background:var(--amber)"></div>Moderately Competitive (80–92%)</div>
+        <div class="legend-item"><div class="leg-dot" style="background:var(--green)"></div>Less Competitive (&gt;92%)</div>
+      </div>
+      <div class="spec-search-wrap">
+        <span class="spec-search-icon">🔍</span>
+        <input class="spec-search" id="spec-search" placeholder="Search specialties…" oninput="filterSpecialties(this.value)" />
+      </div>
+      <div class="spec-grid" id="spec-grid"></div>
+      <div class="alert alert-blue" style="margin-top:1.25rem;">
+        <strong>ℹ️ What is "preferred specialty"?</strong> It's the specialty of the <em>first program</em> on your rank order list — assumed to be your top choice.
+      </div>
+      <div class="btn-group">
+        <div></div>
+        <button class="btn btn-primary" onclick="nextStep(2)">Continue — Step 2 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: Profile -->
+  <div class="panel" id="panel-2">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Step 2 — Your Academic Profile</div>
+        <div class="card-sub">All 12 metrics from the NRMP Charting Outcomes report. Compared against 2024 matched and unmatched applicants in your specialty.</div>
+      </div>
+
+      <div class="form-grid">
+
+        <!-- Step 2 CK -->
+        <div class="f-group">
+          <label class="f-label">USMLE Step 2 CK Score
+            <span class="f-hint">2024 overall matched mean: <strong>250</strong> | Minimum passing: 214</span>
+          </label>
+          <input class="f-input" type="number" id="inp-s2ck" placeholder="e.g. 248" min="185" max="300" />
+        </div>
+
+        <!-- Step 1 -->
+        <div class="f-group">
+          <label class="f-label">USMLE Step 1 Score <em style="font-style:normal;font-size:.75rem;color:var(--slate-400)">(Optional)</em>
+            <span class="f-hint">Only enter if you took Step 1 <strong>before Jan 26, 2022</strong> (numeric score era). Only 13.3% of 2024 applicants reported one.</span>
+          </label>
+          <input class="f-input" type="number" id="inp-s1" placeholder="Leave blank if P/F" min="185" max="300" />
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             AOA — NOW 3-STATE: yes / no / na (no chapter)
+             ═══════════════════════════════════════════════════════ -->
+        <div class="f-group full">
+          <label class="f-label">AOA Honor Society Membership
+            <span class="f-hint">Alpha Omega Alpha membership — select the option that best describes your situation. If your school has no AOA chapter, your score will <strong>not be penalized</strong>.</span>
+          </label>
+          <!-- 3-button toggle row -->
+          <div class="toggle-row" id="aoa-toggle-row">
+            <button class="tgl" id="tgl-aoa-yes" onclick="setAoa('yes')">✅ Yes — I Am an AOA Member</button>
+            <button class="tgl" id="tgl-aoa-no"  onclick="setAoa('no')">✗ No — But My School Has AOA</button>
+            <button class="tgl" id="tgl-aoa-na"  onclick="setAoa('na')">🚫 My School Has No AOA Chapter</button>
+          </div>
+          <!-- Contextual callout — shown only for 'na' state -->
+          <div id="aoa-na-callout" class="aoa-na-note" style="display:none;">
+            <strong>ℹ️ AOA Excluded from Your Score</strong> — Since your school doesn't sponsor an AOA chapter, this metric will be <strong>completely excluded</strong> from your composite calculation and will not count against you in any way. This matches the NRMP's own acknowledgment that "not all M.D.-granting medical schools participate" in AOA. The benchmark data is still shown for context only.
+          </div>
+        </div>
+
+        <!-- NIH Top 40 -->
+        <div class="f-group">
+          <label class="f-label">NIH Top-40 Medical School
+            <span class="f-hint">Is your school among the 40 with the highest NIH research funding?</span>
+          </label>
+          <div class="toggle-row">
+            <button class="tgl" id="tgl-nih-y" onclick="setTgl('nih',true)">✅ Yes — Top-40 NIH school</button>
+            <button class="tgl no" id="tgl-nih-n" onclick="setTgl('nih',false)">✗ No / Unsure</button>
+          </div>
+        </div>
+
+        <!-- Research -->
+        <div class="f-group">
+          <label class="f-label">Research Experiences
+            <span class="f-hint">Number of research projects entered in your application. 2024 matched avg: <strong>3.7</strong></span>
+          </label>
+          <input class="f-input" type="number" id="inp-res" placeholder="e.g. 3" min="0" max="50" value="0" />
+        </div>
+
+        <!-- Publications -->
+        <div class="f-group">
+          <label class="f-label">Abstracts, Presentations & Publications
+            <span class="f-hint">Combined total — peer-reviewed, posters, invited talks. 2024 matched avg: <strong>10.0</strong></span>
+          </label>
+          <input class="f-input" type="number" id="inp-pub" placeholder="e.g. 5" min="0" max="300" value="0" />
+        </div>
+
+        <!-- Work Exp -->
+        <div class="f-group">
+          <label class="f-label">Work Experiences
+            <span class="f-hint">Number listed in ERAS. 2024 matched avg: <strong>1.9</strong></span>
+          </label>
+          <input class="f-input" type="number" id="inp-work" placeholder="e.g. 2" min="0" max="30" value="0" />
+        </div>
+
+        <!-- Volunteer -->
+        <div class="f-group">
+          <label class="f-label">Volunteer Experiences
+            <span class="f-hint">Community service, free clinics, medical missions, etc. 2024 matched avg: <strong>4.5</strong></span>
+          </label>
+          <input class="f-input" type="number" id="inp-vol" placeholder="e.g. 4" min="0" max="60" value="0" />
+        </div>
+
+        <!-- PhD -->
+        <div class="f-group">
+          <label class="f-label">PhD Degree
+            <span class="f-hint">Are you an MD-PhD or completing a PhD?</span>
+          </label>
+          <div class="toggle-row">
+            <button class="tgl" id="tgl-phd-y" onclick="setTgl('phd',true)">✅ Yes — I have / am completing a PhD</button>
+            <button class="tgl no" id="tgl-phd-n" onclick="setTgl('phd',false)">✗ No</button>
+          </div>
+        </div>
+
+        <!-- Other Grad -->
+        <div class="f-group">
+          <label class="f-label">Other Graduate Degree
+            <span class="f-hint">MPH, MBA, MS, MHS, or similar (not a PhD)</span>
+          </label>
+          <div class="toggle-row">
+            <button class="tgl" id="tgl-og-y" onclick="setTgl('og',true)">✅ Yes — I have another grad degree</button>
+            <button class="tgl no" id="tgl-og-n" onclick="setTgl('og',false)">✗ No</button>
+          </div>
+        </div>
+
+      </div><!-- /form-grid -->
+
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="nextStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="nextStep(3)">Continue — Step 3 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: ROL Strategy -->
+  <div class="panel" id="panel-3">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Step 3 — Rank Order List (ROL) Strategy</div>
+        <div class="card-sub">Your rank list behavior is one of the strongest predictors of matching. Enter your target/expected numbers — even if you haven't interviewed yet.</div>
+      </div>
+      <div class="form-grid">
+        <div class="f-group">
+          <label class="f-label">Planned Contiguous Ranks in Your Specialty
+            <span class="f-hint">Programs in your preferred specialty ranked <em>consecutively</em> before any other specialty appears. The #1 behavioral predictor. 2024 matched overall median: <strong>13</strong></span>
+          </label>
+          <input class="f-input" type="number" id="inp-cont" placeholder="e.g. 12" min="0" max="60" value="0" />
+        </div>
+        <div class="f-group">
+          <label class="f-label">Total Distinct Specialties on Your ROL
+            <span class="f-hint">How many different specialties will appear? 1 = all same specialty. 2024 matched overall mean: <strong>1.2</strong></span>
+          </label>
+          <input class="f-input" type="number" id="inp-dist" placeholder="e.g. 1" min="1" max="6" value="1" />
+        </div>
+      </div>
+      <div class="alert alert-blue" style="margin-top:.5rem;">
+        <strong>📌 NRMP Advice:</strong> "Rank the programs with which you've interviewed in the order you most prefer them. Include all programs where you would be willing to train. Include a mix of competitive and less competitive programs within your preferred specialty."
+      </div>
+      <div class="btn-group" style="flex-wrap:wrap;gap:.75rem;">
+        <button class="btn btn-secondary" onclick="nextStep(2)">← Back</button>
+        <button class="btn-giant" onclick="doCalc()">🎯 Calculate My Match Likelihood</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /calc-section -->
+
+<!-- ═══════════════════ RESULTS ═══════════════════ -->
+<div id="results-section" style="display:none;" class="container">
+
+  <div class="result-hero-card" id="res-hero">
+    <div class="gauge-side">
+      <canvas id="gauge-canvas" width="180" height="105"></canvas>
+      <div class="gauge-pct" id="res-pct">—%</div>
+      <div class="gauge-lbl">Estimated Match<br>Probability</div>
+    </div>
+    <div class="result-stats">
+      <div class="spec-name-badge" id="res-spec-badge">—</div>
+      <h3 id="res-verdict">Loading…</h3>
+      <div class="tri-stats">
+        <div class="tri-stat"><div class="tri-val" id="tri-comp">—</div><div class="tri-lbl">Composite Profile Score (0–100)</div></div>
+        <div class="tri-stat"><div class="tri-val" id="tri-base">—</div><div class="tri-lbl">Specialty 2024 Match Rate</div></div>
+        <div class="tri-stat"><div class="tri-val" id="tri-level">—</div><div class="tri-lbl">Competitiveness Level</div></div>
+      </div>
+      <div class="summary-blurb" id="res-blurb"></div>
+    </div>
+  </div>
+
+  <!-- AOA-excluded notice in results (shown conditionally) -->
+  <div id="aoa-excluded-banner" style="display:none;" class="alert" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;margin-bottom:1.25rem;">
+    🚫 <strong>AOA Excluded from Scoring:</strong> Because your school has no AOA chapter, AOA membership has been <strong>completely removed</strong> from your composite score. Its 12% weight has been redistributed proportionally across the remaining metrics. This matches the NRMP's own stated limitation that "not all M.D.-granting medical schools participate" in AOA. You are not penalized for something outside your control.
+  </div>
+
+  <div class="section-head">
+    <h2>📊 Profile Breakdown vs. 2024 Benchmarks</h2>
+    <p>Comparing your profile to 2024 matched and unmatched U.S. MD seniors in <strong id="res-spec-inline">your specialty</strong>.</p>
+  </div>
+  <div class="legend" style="margin-bottom:.75rem;">
+    <div class="legend-item"><div class="leg-dot" style="background:linear-gradient(90deg,#1d4ed8,#0ea5e9)"></div>You</div>
+    <div class="legend-item"><div class="leg-dot" style="background:var(--green)"></div>2024 Matched</div>
+    <div class="legend-item"><div class="leg-dot" style="background:var(--red)"></div>2024 Unmatched</div>
+    <div class="legend-item"><div class="leg-dot" style="background:var(--sky)"></div>Not Applicable / Excluded</div>
+  </div>
+  <div class="metric-grid" id="metric-grid"></div>
+  <div id="small-sample-note" style="display:none;" class="alert-small-sample">
+    ⚠️ <strong>Small Sample Note:</strong> This specialty had very few unmatched applicants in 2024 (match rate &gt;96%). Some unmatched benchmarks are based on very small numbers — use them directionally.
+  </div>
+
+  <div class="card" style="border-top: 3px solid var(--red);">
+    <div class="card-head">
+      <div class="card-title" style="color:var(--red);">⚠️ Areas to Strengthen Before Your Cycle</div>
+      <div class="card-sub">Metrics where your profile falls below matched benchmarks, sorted by impact.</div>
+    </div>
+    <div id="weak-list"></div>
+  </div>
+
+  <div class="card" style="border-top: 3px solid var(--green);">
+    <div class="card-head">
+      <div class="card-title" style="color:var(--green);">✅ Your Strengths</div>
+      <div class="card-sub">Metrics where you meet or exceed the matched benchmark.</div>
+    </div>
+    <div id="strong-list"></div>
+  </div>
+
+  <div class="card" style="border-top: 3px solid var(--blue);">
+    <div class="card-head">
+      <div class="card-title" style="color:var(--blue);">🗂 Prioritized Action Plan</div>
+      <div class="card-sub">Specific, actionable steps ranked by potential impact on your match likelihood.</div>
+    </div>
+    <div id="action-list"></div>
+  </div>
+
+  <div class="alert alert-amber">
+    <strong>⚠️ Important Disclaimer:</strong> This tool is a study/planning aid based on <em>aggregate</em> NRMP 2024 data. It does <em>not</em> predict your individual outcome. Many critical factors are not captured here: Letters of Recommendation, Personal Statement, MSPE, Away Rotation performance, and interview skills. <strong>Always work with your school's Dean of Students and specialty advisor.</strong>
+  </div>
+
+  <div style="text-align:center;margin:1.5rem 0 .5rem;">
+    <button class="btn btn-secondary" onclick="resetAll()">← Recalculate / Change Specialty</button>
+  </div>
+</div>
+
+<footer>
+  <p><strong>MatchCalc 2024</strong> — Built on data from <em>Charting Outcomes in the Match: U.S. MD Seniors, 2024</em>. Copyright ©2024 NRMP. For educational planning purposes only. Not affiliated with or endorsed by NRMP or AAMC.</p>
+</footer>
+
+<script>
+/* =====================================================================
+   SPECIALTY DATA — 2024 NRMP Charting Outcomes
+   M = matched benchmarks, U = unmatched benchmarks
+   Fields: cont (contiguous ranks median), s2ck, s1,
+           aoa/nih/phd/og (percentages), res/pub/work/vol (means)
+   ===================================================================== */
+const SD = {
+  'Anesthesiology':                  { matchRate:85.2, comp:'Moderate',          smallSample:false, M:{cont:13,s2ck:251,s1:231,aoa:14,nih:33,res:3.8,pub:9.0, work:2.0,vol:4.3,phd:4, og:17}, U:{cont:6, s2ck:238,s1:220,aoa:1, nih:24,res:3.1,pub:5.4, work:2.4,vol:4.1,phd:0, og:24} },
+  'Child Neurology':                 { matchRate:97.1, comp:'Less Competitive',   smallSample:true,  M:{cont:13,s2ck:247,s1:228,aoa:14,nih:30,res:3.0,pub:9.8, work:1.7,vol:4.5,phd:13,og:21}, U:{cont:4, s2ck:232,s1:215,aoa:0, nih:0, res:2.0,pub:1.0, work:0.5,vol:3.5,phd:2, og:0}  },
+  'Dermatology':                     { matchRate:70.5, comp:'Highly Competitive', smallSample:false, M:{cont:8, s2ck:258,s1:249,aoa:41,nih:42,res:6.4,pub:27.7,work:2.3,vol:5.3,phd:10,og:17}, U:{cont:4, s2ck:245,s1:237,aoa:24,nih:23,res:4.9,pub:19.0,work:2.5,vol:5.6,phd:3, og:17} },
+  'Diagnostic Radiology':            { matchRate:86.4, comp:'Moderate',          smallSample:false, M:{cont:14,s2ck:253,s1:237,aoa:20,nih:30,res:4.4,pub:12.0,work:1.9,vol:3.9,phd:4, og:19}, U:{cont:4, s2ck:241,s1:225,aoa:5, nih:23,res:3.6,pub:8.0, work:2.1,vol:3.6,phd:5, og:18} },
+  'Emergency Medicine':              { matchRate:98.0, comp:'Less Competitive',   smallSample:true,  M:{cont:15,s2ck:251,s1:233,aoa:12,nih:25,res:2.8,pub:5.7, work:2.2,vol:4.4,phd:1, og:20}, U:{cont:3, s2ck:238,s1:220,aoa:0, nih:15,res:2.3,pub:5.0, work:2.8,vol:4.8,phd:0, og:35} },
+  'Family Medicine':                 { matchRate:98.8, comp:'Less Competitive',   smallSample:true,  M:{cont:13,s2ck:245,s1:228,aoa:9, nih:25,res:2.1,pub:4.2, work:1.8,vol:4.6,phd:1, og:17}, U:{cont:4, s2ck:231,s1:215,aoa:0, nih:17,res:1.8,pub:1.4, work:2.3,vol:7.4,phd:1, og:8}  },
+  'General Surgery':                 { matchRate:81.8, comp:'Moderate',          smallSample:false, M:{cont:14,s2ck:251,s1:236,aoa:22,nih:28,res:4.2,pub:10.9,work:2.0,vol:4.5,phd:2, og:22}, U:{cont:5, s2ck:239,s1:224,aoa:3, nih:17,res:3.7,pub:7.3, work:2.5,vol:4.2,phd:5, og:24} },
+  'Internal Medicine':               { matchRate:97.8, comp:'Less Competitive',   smallSample:true,  M:{cont:13,s2ck:249,s1:232,aoa:16,nih:32,res:3.3,pub:8.7, work:1.8,vol:4.2,phd:5, og:19}, U:{cont:3, s2ck:237,s1:220,aoa:5, nih:22,res:3.3,pub:6.2, work:1.9,vol:4.1,phd:5, og:27} },
+  'Internal Medicine/Pediatrics':    { matchRate:86.0, comp:'Moderate',          smallSample:false, M:{cont:11,s2ck:252,s1:235,aoa:22,nih:36,res:3.1,pub:6.9, work:1.7,vol:5.1,phd:2, og:25}, U:{cont:2, s2ck:239,s1:222,aoa:7, nih:17,res:2.6,pub:6.2, work:2.0,vol:4.8,phd:0, og:34} },
+  'Interventional Radiology':        { matchRate:82.8, comp:'Highly Competitive', smallSample:false, M:{cont:4, s2ck:258,s1:242,aoa:18,nih:32,res:4.7,pub:15.8,work:2.2,vol:3.9,phd:3, og:23}, U:{cont:2, s2ck:244,s1:228,aoa:13,nih:17,res:4.6,pub:10.1,work:3.1,vol:3.9,phd:8, og:30} },
+  'Neurological Surgery':            { matchRate:68.7, comp:'Highly Competitive', smallSample:false, M:{cont:16,s2ck:257,s1:248,aoa:28,nih:46,res:5.8,pub:37.4,work:2.2,vol:4.2,phd:7, og:26}, U:{cont:9, s2ck:244,s1:232,aoa:14,nih:25,res:5.5,pub:31.8,work:1.8,vol:4.2,phd:4, og:27} },
+  'Neurology':                       { matchRate:93.8, comp:'Less Competitive',   smallSample:false, M:{cont:13,s2ck:248,s1:231,aoa:13,nih:27,res:3.5,pub:8.8, work:1.8,vol:4.2,phd:5, og:20}, U:{cont:4, s2ck:234,s1:218,aoa:0, nih:17,res:2.8,pub:5.5, work:1.8,vol:3.9,phd:4, og:14} },
+  'Obstetrics and Gynecology':       { matchRate:85.7, comp:'Moderate',          smallSample:false, M:{cont:12,s2ck:250,s1:234,aoa:22,nih:29,res:3.8,pub:9.0, work:2.0,vol:5.0,phd:1, og:22}, U:{cont:7, s2ck:237,s1:222,aoa:9, nih:23,res:3.3,pub:6.8, work:2.1,vol:5.0,phd:3, og:25} },
+  'Orthopaedic Surgery':             { matchRate:73.1, comp:'Highly Competitive', smallSample:false, M:{cont:11,s2ck:258,s1:244,aoa:34,nih:33,res:8.1,pub:23.8,work:2.5,vol:4.8,phd:1, og:18}, U:{cont:5, s2ck:244,s1:231,aoa:16,nih:21,res:8.0,pub:18.0,work:2.4,vol:4.8,phd:4, og:25} },
+  'Otolaryngology':                  { matchRate:81.9, comp:'Highly Competitive', smallSample:false, M:{cont:13,s2ck:260,s1:247,aoa:34,nih:37,res:7.1,pub:20.0,work:2.0,vol:4.3,phd:3, og:18}, U:{cont:7, s2ck:250,s1:235,aoa:17,nih:28,res:5.5,pub:15.6,work:2.4,vol:6.7,phd:0, og:24} },
+  'Pathology':                       { matchRate:93.5, comp:'Less Competitive',   smallSample:false, M:{cont:12,s2ck:243,s1:228,aoa:9, nih:32,res:3.1,pub:8.4, work:1.9,vol:3.3,phd:21,og:14}, U:{cont:5, s2ck:231,s1:215,aoa:0, nih:9, res:2.3,pub:4.1, work:3.2,vol:4.7,phd:50,og:20} },
+  'Pediatrics':                      { matchRate:99.7, comp:'Less Competitive',   smallSample:true,  M:{cont:15,s2ck:247,s1:231,aoa:13,nih:29,res:2.6,pub:6.4, work:1.6,vol:4.9,phd:3, og:17}, U:{cont:2, s2ck:224,s1:208,aoa:0, nih:50,res:0.5,pub:21.5,work:0.5,vol:6.0,phd:0, og:0}  },
+  'Physical Medicine & Rehabilitation':{ matchRate:84.8, comp:'Moderate',        smallSample:false, M:{cont:13,s2ck:248,s1:231,aoa:14,nih:22,res:3.4,pub:8.6, work:1.8,vol:4.8,phd:2, og:16}, U:{cont:4, s2ck:234,s1:218,aoa:0, nih:24,res:3.3,pub:6.4, work:2.2,vol:4.9,phd:0, og:13} },
+  'Plastic Surgery':                 { matchRate:74.3, comp:'Highly Competitive', smallSample:false, M:{cont:13,s2ck:260,s1:249,aoa:36,nih:45,res:8.6,pub:34.7,work:2.7,vol:5.0,phd:3, og:24}, U:{cont:7, s2ck:247,s1:236,aoa:19,nih:31,res:9.2,pub:26.3,work:0.5,vol:4.9,phd:2, og:27} },
+  'Psychiatry':                      { matchRate:89.1, comp:'Moderate',          smallSample:false, M:{cont:11,s2ck:246,s1:229,aoa:9, nih:30,res:3.0,pub:7.5, work:1.9,vol:4.5,phd:5, og:21}, U:{cont:4, s2ck:232,s1:217,aoa:2, nih:26,res:3.1,pub:4.6, work:2.4,vol:4.0,phd:3, og:23} },
+  'Radiation Oncology':              { matchRate:97.5, comp:'Moderate',          smallSample:true,  M:{cont:16,s2ck:256,s1:242,aoa:16,nih:34,res:4.2,pub:15.9,work:1.6,vol:3.9,phd:14,og:17}, U:{cont:1, s2ck:243,s1:228,aoa:0, nih:33,res:2.0,pub:13.5,work:2.0,vol:2.0,phd:14,og:17} },
+  'Vascular Surgery':                { matchRate:88.5, comp:'Moderate',          smallSample:false, M:{cont:23,s2ck:256,s1:241,aoa:14,nih:38,res:4.6,pub:12.8,work:2.5,vol:4.7,phd:22,og:19}, U:{cont:11,s2ck:244,s1:228,aoa:17,nih:0, res:4.5,pub:8.0, work:2.8,vol:4.0,phd:20,og:0}  }
+};
+
+/* =====================================================================
+   APP STATE
+   ===================================================================== */
+let selSpec   = null;
+// aoaState: 'yes' | 'no' | 'na'
+// tglState for binary toggles
+let aoaState  = 'no';
+let tglState  = { nih:false, phd:false, og:false };
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+function init() {
+  const grid = document.getElementById('spec-grid');
+  Object.entries(SD).forEach(([name, d]) => {
+    const btn = document.createElement('button');
+    btn.className = 'spec-btn';
+    btn.id = 'sb-' + slugify(name);
+    const dotClass = d.matchRate < 80 ? 'comp-high' : d.matchRate < 93 ? 'comp-mod' : 'comp-low';
+    btn.innerHTML = `
+      <span class="spec-btn-name">${name}</span>
+      <span class="spec-btn-rate">
+        <span class="comp-dot ${dotClass}"></span>
+        ${d.matchRate}% match rate · ${d.comp}
+      </span>`;
+    btn.onclick = () => pickSpec(name);
+    grid.appendChild(btn);
+  });
+  // default toggle states
+  setAoa('no');
+  ['nih','phd','og'].forEach(k => setTgl(k, false));
+}
+
+function slugify(s) { return s.replace(/[^a-zA-Z0-9]/g, ''); }
+
+function filterSpecialties(q) {
+  q = q.toLowerCase();
+  Object.keys(SD).forEach(name => {
+    const el = document.getElementById('sb-' + slugify(name));
+    if (el) el.style.display = name.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function pickSpec(name) {
+  selSpec = name;
+  document.querySelectorAll('.spec-btn').forEach(b => b.classList.remove('sel'));
+  const el = document.getElementById('sb-' + slugify(name));
+  if (el) el.classList.add('sel');
+}
+
+/* =====================================================================
+   TOGGLE HANDLERS
+   ===================================================================== */
+
+// ── Binary toggle (nih, phd, og) ──
+function setTgl(key, val) {
+  tglState[key] = val;
+  const y = document.getElementById('tgl-' + key + '-y');
+  const n = document.getElementById('tgl-' + key + '-n');
+  if (!y || !n) return;
+  y.className = 'tgl' + (val  ? ' yes' : '');
+  n.className = 'tgl' + (!val ? ' no'  : '');
+}
+
+// ── 3-state AOA toggle ──
+function setAoa(val) {
+  aoaState = val; // 'yes' | 'no' | 'na'
+  const yBtn  = document.getElementById('tgl-aoa-yes');
+  const nBtn  = document.getElementById('tgl-aoa-no');
+  const naBtn = document.getElementById('tgl-aoa-na');
+  const callout = document.getElementById('aoa-na-callout');
+  if (!yBtn || !nBtn || !naBtn) return;
+
+  // Clear all
+  yBtn.className  = 'tgl';
+  nBtn.className  = 'tgl';
+  naBtn.className = 'tgl';
+
+  // Apply active state
+  if (val === 'yes') yBtn.className  = 'tgl yes';
+  if (val === 'no')  nBtn.className  = 'tgl no';
+  if (val === 'na')  naBtn.className = 'tgl na';
+
+  // Show/hide explanation callout
+  if (callout) callout.style.display = (val === 'na') ? 'block' : 'none';
+}
+
+/* =====================================================================
+   NAVIGATION
+   ===================================================================== */
+function nextStep(step) {
+  if (step === 2 && !selSpec) { alert('Please select a specialty to continue.'); return; }
+  for (let i = 1; i <= 4; i++) {
+    const ps = document.getElementById('ps-' + (i === 4 ? 'r' : i));
+    if (ps) {
+      ps.classList.remove('active','done');
+      if (i < step)      ps.classList.add('done');
+      else if (i === step) ps.classList.add('active');
+    }
+  }
+  ['12','23','3r'].forEach((lbl, idx) => {
+    const pl = document.getElementById('pl-' + lbl);
+    if (pl) pl.classList.toggle('done', idx + 1 < step);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + step);
+  if (panel) panel.classList.add('active');
+  window.scrollTo({ top: document.getElementById('calc-anchor').offsetTop - 70, behavior:'smooth' });
+}
+
+/* =====================================================================
+   SCORING ENGINE
+   ===================================================================== */
+function norm(val, lo, hi) {
+  if (Math.abs(hi - lo) < 0.001) return 50;
+  return Math.max(0, Math.min(100, (val - lo) / (hi - lo) * 100));
+}
+
+function calcScore(userProfile, specName) {
+  const sp = SD[specName];
+  const M  = sp.M, U = sp.U;
+  const components = {};
+  const aoaIsNA = (userProfile.aoa === 'na'); // ← key flag
+
+  const add = (key, uVal, mVal, unmVal, label, weight, unit='', isBin=false) => {
+    let score;
+    if (isBin) {
+      const moreIsBetter = mVal >= unmVal;
+      score = (uVal === true)
+        ? (moreIsBetter ? 100 : 0)
+        : (moreIsBetter ?   0 : 100);
+    } else {
+      const moreIsBetter = mVal >= unmVal;
+      score = moreIsBetter
+        ? norm(uVal, unmVal, mVal)
+        : (100 - norm(uVal, mVal, unmVal));
+    }
+    components[key] = { score, weight, label, userVal:uVal, mVal, unmVal, unit, isBin, isNA:false };
+  };
+
+  // Step 2 CK
+  const hasS1 = userProfile.s1 > 0;
+  const s2w   = hasS1 ? 22 : 32;
+  if (userProfile.s2ck > 0) add('s2ck', userProfile.s2ck, M.s2ck, U.s2ck, 'USMLE Step 2 CK Score', s2w, '');
+  if (hasS1)                add('s1',   userProfile.s1,   M.s1,   U.s1,   'USMLE Step 1 Score',    10, '');
+
+  // Contiguous ranks
+  add('cont', userProfile.cont, M.cont, U.cont, 'Contiguous Ranks (ROL Strategy)', 22, ' programs');
+
+  // ── AOA: handle all three states ──────────────────────────────────
+  if (aoaIsNA) {
+    // Store for display only — weight = 0 so it's excluded from composite
+    components['aoa'] = {
+      score: null, weight: 0,
+      label: 'AOA Membership',
+      userVal: 'na', mVal: M.aoa, unmVal: U.aoa,
+      unit: '%', isBin: true, isNA: true
+    };
+  } else {
+    // Normal binary scoring: 'yes' → true, 'no' → false
+    add('aoa', userProfile.aoa === 'yes', M.aoa, U.aoa, 'AOA Membership', 12, '%', true);
+  }
+  // ─────────────────────────────────────────────────────────────────
+
+  add('nih',  userProfile.nih,  M.nih,  U.nih,  'NIH Top-40 Medical School',                    8,  '%',  true);
+  add('res',  userProfile.res,  M.res,  U.res,  'Research Experiences',                          7,  '');
+  add('pub',  userProfile.pub,  M.pub,  U.pub,  'Abstracts / Presentations / Publications',      7,  '');
+  add('work', userProfile.work, M.work, U.work, 'Work Experiences',                              3,  '');
+  add('vol',  userProfile.vol,  M.vol,  U.vol,  'Volunteer Experiences',                         3,  '');
+  add('phd',  userProfile.phd,  M.phd,  U.phd,  'PhD Degree',                                   2,  '%',  true);
+  add('og',   userProfile.og,   M.og,   U.og,   'Other Graduate Degree (MPH, MBA, etc.)',        2,  '%',  true);
+
+  // Weighted composite — AOA weight is 0 when isNA, so it's naturally excluded
+  // totalW < 100 when AOA excluded; division by totalW re-normalises automatically
+  let totalW = 0, wtScore = 0;
+  Object.values(components).forEach(c => {
+    if (!c.isNA && c.score !== null) {
+      wtScore += c.score * c.weight;
+      totalW  += c.weight;
+    }
+  });
+
+  // If s2ck not entered, redistribute that missing weight
+  if (userProfile.s2ck === 0 && totalW > 0) {
+    const scale = 100 / totalW;
+    Object.values(components).forEach(c => { if (!c.isNA) c.weight = Math.round(c.weight * scale); });
+    totalW = Object.values(components).filter(c => !c.isNA).reduce((a,c) => a + c.weight, 0);
+  }
+
+  const composite = totalW > 0 ? wtScore / totalW : 50;
+
+  // Map composite → probability
+  const base = sp.matchRate / 100;
+  let prob;
+  if (composite >= 50) {
+    prob = base + (composite - 50) / 50 * (0.99 - base);
+  } else {
+    prob = base - (50 - composite) / 50 * (base - 0.05);
+  }
+  prob = Math.max(0.05, Math.min(0.99, prob));
+
+  return { prob, composite, components };
+}
+
+/* =====================================================================
+   MAIN CALCULATE
+   ===================================================================== */
+function doCalc() {
+  if (!selSpec) { alert('Please go back and select a specialty.'); return; }
+
+  const s2ck = parseFloat(document.getElementById('inp-s2ck').value) || 0;
+  const s1   = parseFloat(document.getElementById('inp-s1').value)   || 0;
+  const res  = parseFloat(document.getElementById('inp-res').value)  || 0;
+  const pub  = parseFloat(document.getElementById('inp-pub').value)  || 0;
+  const work = parseFloat(document.getElementById('inp-work').value) || 0;
+  const vol  = parseFloat(document.getElementById('inp-vol').value)  || 0;
+  const cont = parseFloat(document.getElementById('inp-cont').value) || 0;
+  const dist = parseFloat(document.getElementById('inp-dist').value) || 1;
+
+  if (s2ck === 0) {
+    if (!confirm('You haven\'t entered a Step 2 CK score — this is the most heavily-weighted metric. Continue anyway?')) return;
+  }
+
+  const user = {
+    s2ck, s1,
+    aoa: aoaState, // 'yes' | 'no' | 'na'
+    nih: tglState.nih, phd: tglState.phd, og: tglState.og,
+    res, pub, work, vol, cont, dist
+  };
+
+  const { prob, composite, components } = calcScore(user, selSpec);
+  renderResults(prob, composite, components, selSpec, user);
+}
+
+/* =====================================================================
+   RENDER RESULTS
+   ===================================================================== */
+function renderResults(prob, composite, components, specName, user) {
+  document.getElementById('calc-section').style.display    = 'none';
+  document.getElementById('results-section').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const sp    = SD[specName];
+  const pct   = Math.round(prob * 100);
+  const comp  = Math.round(composite);
+  const base  = sp.matchRate;
+  const diff  = pct - base;
+  const diffStr = diff >= 0 ? `+${diff.toFixed(0)}% above` : `${Math.abs(diff).toFixed(0)}% below`;
+
+  // ── AOA-excluded banner ──────────────────────────────────────────
+  const banner = document.getElementById('aoa-excluded-banner');
+  if (banner) {
+    banner.style.cssText = user.aoa === 'na'
+      ? 'display:block;background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;border-radius:8px;padding:.875rem 1.1rem;font-size:.85rem;line-height:1.55;margin-bottom:1.25rem;'
+      : 'display:none;';
+  }
+
+  // Hero card
+  document.getElementById('res-pct').textContent   = pct + '%';
+  document.getElementById('res-pct').style.color   = pct >= 88 ? '#86efac' : pct >= 74 ? '#fde68a' : '#fca5a5';
+  document.getElementById('res-spec-badge').textContent   = specName;
+  document.getElementById('res-spec-inline').textContent  = specName;
+  document.getElementById('tri-comp').textContent  = comp + '/100';
+  document.getElementById('tri-base').textContent  = base + '%';
+
+  const compTagMap = {
+    'Highly Competitive':     ['highly',   '🔴 Highly Competitive'],
+    'Moderately Competitive': ['very',     '🟠 Moderately Competitive'],
+    'Moderate':               ['moderate', '🟡 Moderate'],
+    'Less Competitive':       ['less',     '🟢 Less Competitive']
+  };
+  const [cls, lbl] = compTagMap[sp.comp] || ['moderate', sp.comp];
+  document.getElementById('tri-level').innerHTML = `<span class="comp-tag ${cls}" style="font-size:.7rem;">${lbl}</span>`;
+
+  let verdict;
+  if (pct >= 90)      verdict = '🟢 Strong Candidate Profile';
+  else if (pct >= 78) verdict = '🟡 Competitive with Some Risk';
+  else if (pct >= 65) verdict = '🟠 Moderate Risk — Action Required';
+  else                verdict = '🔴 High Risk — Significant Gaps Identified';
+  document.getElementById('res-verdict').textContent = verdict;
+
+  // AOA note in blurb
+  const aoaNote = user.aoa === 'na'
+    ? ' AOA was excluded from scoring (no chapter at your school).'
+    : '';
+  document.getElementById('res-blurb').innerHTML =
+    `Your estimated probability of <strong>${pct}%</strong> is <strong>${diffStr}</strong> the 2024 ${specName} match rate of <strong>${base}%</strong>. Composite profile score: <strong>${comp}/100</strong>.${aoaNote}`;
+
+  drawGauge(pct);
+  document.getElementById('small-sample-note').style.display = sp.smallSample ? 'block' : 'none';
+
+  renderMetricCards(components);
+  renderWeakStrong(components, specName, user);
+  renderActionPlan(components, sp, specName, user);
+}
+
+/* ===== GAUGE ===== */
+function drawGauge(pct) {
+  const canvas = document.getElementById('gauge-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 90, cy = 90, r = 72;
+  ctx.clearRect(0, 0, 180, 105);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, 0, false);
+  ctx.strokeStyle = 'rgba(255,255,255,.15)';
+  ctx.lineWidth = 16; ctx.stroke();
+  const angle = Math.PI + (pct / 100) * Math.PI;
+  const color = pct >= 88 ? '#22c55e' : pct >= 74 ? '#f59e0b' : '#ef4444';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, angle, false);
+  ctx.strokeStyle = color; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.stroke();
+}
+
+/* ===== METRIC CARDS ===== */
+function renderMetricCards(components) {
+  const grid = document.getElementById('metric-grid');
+  grid.innerHTML = '';
+  const order = ['s2ck','s1','cont','aoa','nih','res','pub','work','vol','phd','og'];
+
+  order.forEach(key => {
+    const c = components[key];
+    if (!c) return;
+    const card = document.createElement('div');
+
+    // ── Special rendering for AOA when school has no chapter ──
+    if (c.isNA) {
+      card.className = 'metric-card na-card';
+      card.innerHTML = `
+        <div class="metric-top">
+          <div class="metric-name">${c.label}
+            <span style="color:#0369a1;font-weight:600;font-size:.77rem;"> — excluded from composite scoring</span>
+          </div>
+          <div class="metric-badge na-badge">🚫 N/A — No Chapter at My School</div>
+        </div>
+        <div class="bin-row">
+          <span class="bin-you-chip na-chip">🚫 No AOA Chapter at My School</span>
+          <span class="bin-stat">2024 Matched: <strong>${c.mVal}%</strong>&ensp;|&ensp;Unmatched: <strong>${c.unmVal}%</strong></span>
+        </div>
+        <div style="font-size:.78rem;color:#0369a1;margin-top:.55rem;background:#e0f2fe;border:1px solid #bae6fd;border-radius:6px;padding:.5rem .75rem;line-height:1.55;">
+          ℹ️ <strong>This metric has been completely excluded from your composite score and does not affect your result in any way.</strong>
+          The NRMP itself notes that AOA analysis is limited because "not all M.D.-granting medical schools participate."
+          Benchmark percentages above are shown for informational context only.
+        </div>`;
+      grid.appendChild(card);
+      return;
+    }
+
+    // Normal scored card
+    const score  = c.score;
+    const status = score >= 70 ? 'strength' : score >= 42 ? 'watch' : 'weakness';
+    const badgeLbl = score >= 70 ? '✅ Strength' : score >= 42 ? '⚠️ Average' : '❌ Weakness';
+    card.className = `metric-card ${status}`;
+
+    let innerHtml = `
+      <div class="metric-top">
+        <div class="metric-name">${c.label}
+          <span style="color:var(--slate-400);font-weight:400;font-size:.78rem;">(weight: ${c.weight}%)</span>
+        </div>
+        <div class="metric-badge ${status}">${badgeLbl} · ${Math.round(score)}/100</div>
+      </div>`;
+
+    if (c.isBin) {
+      const hasIt = c.userVal === true;
+      const moreIsBetter = c.mVal >= c.unmVal;
+      const contextNote = moreIsBetter
+        ? `${c.mVal}% of matched had this vs. ${c.unmVal}% of unmatched — having it is advantageous.`
+        : `${c.mVal}% of matched had this vs. ${c.unmVal}% of unmatched — the difference is small or reversed.`;
+      innerHtml += `
+        <div class="bin-row">
+          <span class="bin-you-chip ${hasIt ? 'yes' : 'no'}">${hasIt ? '✅ Yes' : '✗ No'}</span>
+          <span class="bin-stat">Matched: <strong>${c.mVal}%</strong>&ensp;|&ensp;Unmatched: <strong>${c.unmVal}%</strong></span>
+        </div>
+        <div style="font-size:.77rem;color:var(--slate-400);margin-top:.4rem;">${contextNote}</div>`;
+    } else {
+      const maxVal = Math.max(c.userVal, c.mVal, c.unmVal, 0.001);
+      const uw  = Math.min(100, (c.userVal / maxVal) * 100);
+      const mw  = Math.min(100, (c.mVal    / maxVal) * 100);
+      const uw2 = Math.min(100, (c.unmVal  / maxVal) * 100);
+      const fmt = v => Number.isInteger(v) ? v : v.toFixed(1);
+      innerHtml += `
+        <div class="bar-rows">
+          <div class="bar-row"><div class="bar-lbl">You</div><div class="bar-track"><div class="bar-fill bar-you" style="width:${uw}%"></div></div><div class="bar-val">${fmt(c.userVal)}${c.unit}</div></div>
+          <div class="bar-row"><div class="bar-lbl">2024 Matched</div><div class="bar-track"><div class="bar-fill bar-matched" style="width:${mw}%"></div></div><div class="bar-val">${fmt(c.mVal)}${c.unit}</div></div>
+          <div class="bar-row"><div class="bar-lbl">2024 Unmatched</div><div class="bar-track"><div class="bar-fill bar-unmatched" style="width:${uw2}%"></div></div><div class="bar-val">${fmt(c.unmVal)}${c.unit}</div></div>
+        </div>`;
+    }
+    card.innerHTML = innerHtml;
+    grid.appendChild(card);
+  });
+}
+
+/* ===== WEAKNESSES / STRENGTHS ===== */
+function renderWeakStrong(components, specName, user) {
+  const weakList   = document.getElementById('weak-list');
+  const strongList = document.getElementById('strong-list');
+  weakList.innerHTML = ''; strongList.innerHTML = '';
+
+  const advice = {
+    s2ck: {
+      weak:  `Your Step 2 CK score is below the unmatched benchmark for ${specName}. This is the single most important modifiable metric. A dedicated 4–6 week study block (UWorld, Amboss) can move scores 10–20+ points.`,
+      watch: `Your Step 2 CK is in the average range. Aim for the top quartile for ${specName}. Focused review of weak content areas can yield meaningful score gains.`,
+      strong:`Your Step 2 CK score is at or above the matched benchmark for ${specName}. Ensure it's verified and reported correctly on ERAS.`
+    },
+    s1: {
+      weak:  `Your historical Step 1 score is below average. Since Step 1 is now pass/fail for most applicants, compensate by excelling on Step 2 CK and ensuring strong clinical evaluations.`,
+      watch: `Your Step 1 is in the average range. Step 2 CK now carries more weight for newer applicants — focus there.`,
+      strong:`Your Step 1 score is above the matched benchmark — a positive data point for programs reviewing historical scores.`
+    },
+    cont: {
+      weak:  `Your planned contiguous ranks are below the matched median (${SD[specName].M.cont} programs) for ${specName}. Apply to more programs, attend every interview, and rank ALL programs you'd be willing to attend before adding any backup specialty.`,
+      watch: `Try to secure more interviews. The matched median is ${SD[specName].M.cont} contiguous ranks — more is almost always better.`,
+      strong:`Your planned contiguous ranks meet or exceed the matched median of ${SD[specName].M.cont} for ${specName}. Excellent strategy — rank all programs you'd attend.`
+    },
+    aoa: {
+      // Only shown when school has AOA but student is not a member
+      weak:  `You are not an AOA member. ${SD[specName].M.aoa}% of matched ${specName} applicants were AOA vs. ${SD[specName].U.aoa}% of unmatched. Maximize clinical grades, shelf scores, and faculty relationships before elections. Compensate with strong Step 2 CK and research.`,
+      watch: `AOA membership is present in ${SD[specName].M.aoa}% of matched vs. ${SD[specName].U.aoa}% of unmatched in ${specName}. Focus on other higher-weight metrics.`,
+      strong:`AOA membership is a significant differentiator in ${specName} (${SD[specName].M.aoa}% matched vs. ${SD[specName].U.aoa}% unmatched). Highlight it prominently in your application.`
+    },
+    nih: {
+      weak:  `You're not from a top-40 NIH school (${SD[specName].M.nih}% matched vs. ${SD[specName].U.nih}% unmatched in ${specName}). Compensate with first-author publications, national presentations, and strong research mentors.`,
+      watch: ``,
+      strong:`Attending a top-40 NIH school is advantageous for ${specName}. Leverage your institution's research networks.`
+    },
+    res: {
+      weak:  `Your research experience count is below the matched benchmark (${SD[specName].M.res}). Seek out ongoing projects, propose retrospective chart reviews, or join existing research teams.`,
+      watch: `Convert existing projects into presentations/publications rather than starting new ones at this stage.`,
+      strong:`Your research experience count meets or exceeds the matched average for ${specName} (${SD[specName].M.res}). Describe each experience clearly in ERAS.`
+    },
+    pub: {
+      weak:  `Your scholarly output is below the matched benchmark (avg. ${SD[specName].M.pub}). Submit existing work as abstracts, write case reports, or contribute to ongoing systematic reviews. Even "submitted" or "in revision" counts.`,
+      watch: `Try to submit at least one abstract before your cycle opens. Quality and relevance to ${specName} matters most.`,
+      strong:`Your scholarly output meets or exceeds the matched benchmark. Categorize carefully in ERAS for maximum visibility.`
+    },
+    work: {
+      weak:  `Ensure all clinical and non-clinical work is listed: scribing, research coordination, healthcare administration, etc.`,
+      watch: `Work experience counts are similar across most candidates — focus on higher-impact metrics first.`,
+      strong:`Your work experiences provide good context for your commitment to medicine.`
+    },
+    vol: {
+      weak:  `Increase engagement: free clinics, health education, medical mission trips, or specialty-related volunteering.`,
+      watch: `Volunteer counts show small differences between matched and unmatched in most specialties — a lower-priority gap.`,
+      strong:`Strong volunteer experience reflects commitment to community and medicine beyond academics.`
+    },
+    phd: {
+      weak:  `A PhD is advantageous in research-intensive specialties. If you're not MD-PhD, compensate with publications and research mentorship.`,
+      watch: ``,
+      strong:`Having a PhD differentiates you in ${specName} (${SD[specName].M.phd}% of matched). Highlight your research training.`
+    },
+    og: {
+      weak:  ``,
+      watch: `An additional graduate degree shows mixed correlation with matching — focus on higher-weighted metrics.`,
+      strong:`An additional graduate degree (MPH, MBA, MHS) can strengthen applications, especially in specialties valuing health systems or research skills.`
+    }
+  };
+
+  // Sort by impact, excluding isNA items
+  const weighted = Object.entries(components)
+    .filter(([, c]) => !c.isNA)
+    .map(([k, c]) => ({ k, ...c, impact: c.weight * (100 - c.score) / 100 }));
+  weighted.sort((a, b) => b.impact - a.impact);
+
+  let hasWeak = false, hasStrong = false;
+
+  weighted.forEach(({ k, score, weight }) => {
+    const c   = components[k];
+    const adv = advice[k];
+    if (!adv || c.isNA) return;
+
+    if (score < 42) {
+      hasWeak = true;
+      const txt = adv.weak || '';
+      if (!txt) return;
+      weakList.innerHTML += `
+        <div class="ws-item weak">
+          <div class="ws-title">❌ ${c.label} — Score: ${Math.round(score)}/100 (Weight: ${weight}%)</div>
+          <div class="ws-text">${txt}</div>
+        </div>`;
+    } else if (score < 70) {
+      hasWeak = true;
+      const txt = adv.watch || '';
+      if (!txt) return;
+      weakList.innerHTML += `
+        <div class="ws-item warn">
+          <div class="ws-title">⚠️ ${c.label} — Score: ${Math.round(score)}/100 (Weight: ${weight}%)</div>
+          <div class="ws-text">${txt}</div>
+        </div>`;
+    } else {
+      hasStrong = true;
+      const txt = adv.strong || '';
+      if (!txt) return;
+      strongList.innerHTML += `
+        <div class="ws-item strong">
+          <div class="ws-title">✅ ${c.label} — Score: ${Math.round(score)}/100</div>
+          <div class="ws-text">${txt}</div>
+        </div>`;
+    }
+  });
+
+  // ── If AOA is NA, add an informational note in the strengths section ──
+  if (user.aoa === 'na') {
+    hasStrong = true;
+    strongList.innerHTML += `
+      <div class="ws-item info-na">
+        <div class="ws-title">🚫 AOA Membership — Not Applicable (No Chapter at Your School)</div>
+        <div class="ws-text">
+          AOA has been <strong>fully excluded from your score</strong> because your school does not sponsor an AOA chapter.
+          The NRMP explicitly acknowledges this limitation in their report. Programs that receive your application
+          are well aware that not all schools have AOA chapters — your absence of AOA membership will not raise a red flag.
+          Focus instead on demonstrating academic excellence through: <strong>Honors on clerkships</strong>,
+          <strong>high shelf exam scores</strong>, <strong>Gold Humanism Honor Society (GHHS)</strong> membership if available,
+          and ensuring your MSPE/Dean's Letter clearly highlights your academic standing.
+        </div>
+      </div>`;
+  }
+
+  if (!hasWeak)   weakList.innerHTML   = '<div class="info-note">🎉 No major weaknesses detected! Focus on interview preparation and application quality.</div>';
+  if (!hasStrong) strongList.innerHTML = '<div class="info-note">No metrics currently at or above the matched benchmark. Prioritize the highest-impact items in your action plan.</div>';
+}
+
+/* ===== ACTION PLAN ===== */
+function renderActionPlan(components, sp, specName, user) {
+  const container = document.getElementById('action-list');
+  container.innerHTML = '';
+
+  const actions = {
+    s2ck: { emoji:'📚', priority:'high',   title:'Prioritize USMLE Step 2 CK Score',   text:`Step 2 CK is your highest-weighted modifiable metric. The 2024 median for matched ${specName} applicants was approximately ${sp.M.s2ck} vs. ${sp.U.s2ck} for unmatched. Use a dedicated 4–6 week study block with UWorld + Amboss. Even a 10–15 point improvement can move you significantly in the scoring distribution. Retaking is worth considering if your score is below the unmatched benchmark. Verify your score is reported correctly in ERAS.` },
+    s1:   { emoji:'📋', priority:'medium', title:'Address Historical Step 1 Score',     text:`With Step 1 now pass/fail, compensate a below-average historical score with an exceptional Step 2 CK result, outstanding clinical performance (Honors on clerkships), and strong letters of recommendation.` },
+    cont: { emoji:'📝', priority:'high',   title:`Build a Longer Rank List — Aim for ${sp.M.cont}+ Contiguous Ranks`, text:`The #1 behavioral predictor of matching in ${specName} is contiguous rank length. Matched applicants ranked a median of ${sp.M.cont} programs consecutively; unmatched ranked only ${sp.U.cont}. Apply to more programs, attend every interview offered, and rank ALL programs where you'd be willing to train.` },
+    aoa:  { emoji:'🏆', priority:'medium', title:'Work Toward AOA Eligibility',          text:`${sp.M.aoa}% of matched ${specName} applicants were AOA vs. ${sp.U.aoa}% of unmatched. Focus on Honors on clerkships, shelf exam performance, and building relationships with faculty who nominate AOA members. Some schools hold elections in 4th year — check your school's timeline.` },
+    nih:  { emoji:'🔬', priority:'low',    title:'Compensate for Non-Top-40 NIH School', text:`${sp.M.nih}% of matched ${specName} applicants attended top-40 NIH schools vs. ${sp.U.nih}% of unmatched. Compensate with: first-author publications, visiting research fellowships at academic medical centers, and a strong national conference presence.` },
+    res:  { emoji:'🔬', priority:'medium', title:`Increase Research Experiences (Target: ${sp.M.res}+)`, text:`Matched ${specName} applicants averaged ${sp.M.res} research experiences. Reach out to attendings/fellows, propose a focused retrospective study, or join an ongoing project. Prioritize work that can generate a publication or presentation within 6–12 months.` },
+    pub:  { emoji:'📄', priority:'medium', title:`Boost Scholarly Output — Target ${sp.M.pub}+ Abstracts/Publications`, text:`Matched ${specName} applicants averaged ${sp.M.pub} abstracts/presentations/publications vs. ${sp.U.pub} for unmatched. Submit ongoing research as conference abstracts, write up case reports, and aim for at least one first-author submission. "In press" and "submitted" items can be listed in ERAS.` },
+    work: { emoji:'💼', priority:'low',    title:'Thoroughly Document Work Experiences', text:`Ensure all relevant employment is captured in ERAS: medical scribing, clinical research coordination, healthcare administration, EMT/paramedic work, or any health-related job.` },
+    vol:  { emoji:'🤝', priority:'low',    title:'Expand Volunteer Activities',          text:`Matched ${specName} applicants averaged ${sp.M.vol} volunteer experiences. Increase your footprint: free clinics, health education outreach, specialty-specific volunteering, or patient advocacy.` },
+    phd:  { emoji:'🎓', priority:'low',    title:'Leverage PhD Training (if applicable)', text:`${sp.M.phd}% of matched ${specName} applicants had a PhD. If you're an MD-PhD, ensure your research training is front and center in your personal statement and ERAS activities.` },
+    og:   { emoji:'📚', priority:'low',    title:'Frame Your Other Graduate Degree',     text:`An additional graduate degree shows mixed correlation with matching in ${specName}. If you have one, frame it as directly applicable to your specialty goals (e.g., MPH for global health, MBA for health systems leadership).` }
+  };
+
+  const priorityMap   = { high:'hp', medium:'mp', low:'lp' };
+  const priorityLabel = { high:'🔴 HIGH PRIORITY', medium:'🟡 MEDIUM PRIORITY', low:'🟢 LOWER PRIORITY' };
+
+  // ── If AOA is NA, inject the "no chapter — what to do instead" card FIRST ──
+  if (user.aoa === 'na') {
+    const aoaAlt = document.createElement('div');
+    aoaAlt.className = 'action-item';
+    aoaAlt.style.cssText = 'border-left:3px solid var(--sky);background:#f0f9ff;';
+    aoaAlt.innerHTML = `
+      <div class="action-icon-box sky">🏅</div>
+      <div class="action-content">
+        <h4><span class="ptag sky">AOA N/A — COMPENSATE ACADEMICALLY</span>Demonstrating Academic Excellence Without an AOA Chapter</h4>
+        <p>
+          Since your school has no AOA chapter, your score is unaffected. However, programs still evaluate your academic strength
+          through other signals — here's how to show it:
+          <br><br>
+          <strong>1. Clerkship grades:</strong> Aim for Honors in all core rotations, especially in your target specialty.
+          <br><strong>2. Shelf exams:</strong> High shelf scores are a direct academic signal visible in your MSPE.
+          <br><strong>3. Gold Humanism Honor Society (GHHS):</strong> If your school participates, GHHS is widely recognized as a comparable honor.
+          <br><strong>4. MSPE / Dean's Letter:</strong> Your academic standing, class rank (if disclosed), and faculty endorsements in the Dean's Letter serve as a substitute for AOA recognition.
+          <br><strong>5. Step 2 CK:</strong> A high Step 2 CK score is the strongest quantitative signal of academic excellence in the current era.
+          <br><strong>6. Awards & honors:</strong> List any school-specific academic awards, scholarships, or commendations in your ERAS activities.
+        </p>
+      </div>`;
+    container.appendChild(aoaAlt);
+  }
+
+  // Sorted action items, excluding isNA metrics and AOA if NA
+  const items = Object.entries(components)
+    .filter(([k, c]) => !c.isNA && !(k === 'aoa' && user.aoa === 'na'))
+    .map(([k, c]) => ({ k, ...c, impact: c.weight * (100 - c.score) / 100 }))
+    .filter(x => x.score < 80)
+    .sort((a, b) => b.impact - a.impact);
+
+  items.forEach(({ k }) => {
+    const a = actions[k];
+    if (!a) return;
+    const pc = priorityMap[a.priority] || 'lp';
+    const pl = priorityLabel[a.priority];
+    const div = document.createElement('div');
+    div.className = 'action-item';
+    div.innerHTML = `
+      <div class="action-icon-box ${pc}">${a.emoji}</div>
+      <div class="action-content">
+        <h4><span class="ptag ${a.priority}">${pl}</span>${a.title}</h4>
+        <p>${a.text}</p>
+      </div>`;
+    container.appendChild(div);
+  });
+
+  // Universal "not in this calculator" card
+  const universal = document.createElement('div');
+  universal.className = 'action-item';
+  universal.innerHTML = `
+    <div class="action-icon-box info">💬</div>
+    <div class="action-content">
+      <h4><span class="ptag info">NOT IN THIS CALCULATOR</span>Critical Factors Not Captured Here — But Equally Important</h4>
+      <p>This tool covers only the 12 NRMP-reported metrics. Program directors frequently cite: <strong>Letters of Recommendation</strong> (get 1–2 from your target specialty), <strong>Personal Statement</strong> (specialty-specific, authentic), <strong>MSPE / Dean's Letter</strong> (reflects faculty perception), <strong>Away Rotations</strong> (critical for competitive specialties), and <strong>Interview Performance</strong> (where most final decisions are made). Allocate significant time to these regardless of your metric scores.</p>
+    </div>`;
+  container.appendChild(universal);
+
+  if (items.length === 0 && user.aoa !== 'na') {
+    container.innerHTML = `
+      <div class="action-item">
+        <div class="action-icon-box info">🎉</div>
+        <div class="action-content">
+          <h4><span class="ptag info">ALL METRICS STRONG</span>Your Profile Meets Matched Benchmarks</h4>
+          <p>All your metrics meet or exceed matched applicant benchmarks for ${specName}. Focus on: perfecting your personal statement, securing exceptional letters of recommendation, pursuing away rotations, and preparing thoroughly for interviews.</p>
+        </div>
+      </div>` + universal.outerHTML;
+  }
+}
+
+/* ===== RESET ===== */
+function resetAll() {
+  selSpec  = null;
+  aoaState = 'no';
+  tglState = { nih:false, phd:false, og:false };
+  document.querySelectorAll('.spec-btn').forEach(b => b.classList.remove('sel'));
+  setAoa('no');
+  ['nih','phd','og'].forEach(k => setTgl(k, false));
+  ['inp-s2ck','inp-s1','inp-res','inp-pub','inp-work','inp-vol','inp-cont'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('inp-dist').value = '1';
+  document.getElementById('spec-search').value = '';
+  filterSpecialties('');
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('calc-section').style.display   = 'block';
+  nextStep(1);
+}
+
+/* ===== BOOT ===== */
+init();
+</script>
+</body>
+</html>
